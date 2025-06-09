@@ -23,11 +23,8 @@ pipeline {
             $class: 'AmazonWebServicesCredentialsBinding',
             credentialsId: 'aws-creds'
           ]]) {
-            sh '''
-              export AWS_REGION=${AWS_REGION}
-              terraform init
-              terraform apply -auto-approve
-            '''
+            sh 'terraform init'
+            sh 'terraform apply -auto-approve'
           }
         }
       }
@@ -45,12 +42,19 @@ pipeline {
     stage('Install NGINX with Ansible') {
       steps {
         dir('ansible') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds'
-          ]]) {
+          withCredentials([
+            file(credentialsId: 'shared-key-pem', variable: 'SSH_KEY'),
+            [
+              $class: 'AmazonWebServicesCredentialsBinding',
+              credentialsId: 'aws-creds'
+            ]
+          ]) {
             sh '''
               set -e
+              mkdir -p ~/.ssh
+              cp $SSH_KEY ~/.ssh/shared-key.pem
+              chmod 600 ~/.ssh/shared-key.pem
+
               python3 -m venv venv
               ./venv/bin/pip install --upgrade pip
               ./venv/bin/pip install -r requirements.txt
@@ -58,7 +62,7 @@ pipeline {
               export AWS_REGION=${AWS_REGION}
 
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
+              ./venv/bin/ansible-playbook -i aws_ec2.yaml --private-key ~/.ssh/shared-key.pem nginx.yml
             '''
           }
         }
@@ -75,10 +79,7 @@ pipeline {
             $class: 'AmazonWebServicesCredentialsBinding',
             credentialsId: 'aws-creds'
           ]]) {
-            sh '''
-              export AWS_REGION=${AWS_REGION}
-              terraform destroy -auto-approve
-            '''
+            sh 'terraform destroy -auto-approve'
           }
         }
       }
