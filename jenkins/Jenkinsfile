@@ -38,14 +38,22 @@ pipeline {
 
     stage('Install Boto and EC2 Plugin') {
       steps {
-        sh 'pip install boto boto3 botocore'
+        sh '''
+          python3 -m venv venv
+          . venv/bin/activate
+          pip install --upgrade pip
+          pip install boto boto3 botocore
+        '''
       }
     }
 
     stage('Ansible - Install NGINX') {
       steps {
         dir('ansible') {
-          sh 'ansible-playbook playbook.yml'
+          sh '''
+            . ../venv/bin/activate
+            ansible-playbook playbook.yml
+          '''
         }
       }
     }
