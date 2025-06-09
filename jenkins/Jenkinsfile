@@ -5,6 +5,10 @@ pipeline {
     AWS_REGION = 'us-east-1'
   }
 
+  parameters {
+    booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
+  }
+
   stages {
     stage('Checkout') {
       steps {
@@ -39,10 +43,13 @@ pipeline {
       steps {
         dir('ansible') {
           sh '''
+            set -e
             python3 -m venv venv
-            . venv/bin/activate
+            source venv/bin/activate
             pip install --upgrade pip
-            pip install -r requirements.txt
+            pip install ansible boto boto3
+            pip install -r requirements.txt || true
+
             venv/bin/ansible-inventory -i aws_ec2.yaml --graph
             venv/bin/ansible-playbook nginx.yml
           '''
@@ -60,9 +67,5 @@ pipeline {
         }
       }
     }
-  }
-
-  parameters {
-    booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
   }
 }
