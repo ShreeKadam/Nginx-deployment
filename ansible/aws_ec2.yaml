@@ -1,13 +1,14 @@
 plugin: aws_ec2
 regions:
-  - us-east-1
-filters:
-  tag:Project: nginx
+  - us-east-1    # your AWS region here
 keyed_groups:
-  - key: tags
-    prefix: tag
-    separator: _
+  - key: tags.NGINX_Private
+    prefix: tag_NGINX_Private
+    separator: "_"
+filters:
+  "tag:Project": "nginx"
 hostnames:
-  - private-ip-address
+  - tag:Name
 compose:
-  ansible_host: private_ip_address
+  ansible_host: public_ip_address
+
