@@ -16,7 +16,7 @@ pipeline {
       steps {
         withCredentials([[
           $class: 'AmazonWebServicesCredentialsBinding',
-          credentialsId: 'aws-creds'  // <-- Replace with your Jenkins AWS credentials ID
+          credentialsId: 'aws-creds'  // <-- Your Jenkins AWS credentials ID
         ]]) {
           dir('terraform') {
             sh 'terraform init'
@@ -38,22 +38,30 @@ pipeline {
 
     stage('Install Boto and EC2 Plugin') {
       steps {
-        sh '''
-          python3 -m venv venv
-          . venv/bin/activate
-          pip install --upgrade pip
-          pip install boto boto3 botocore
-        '''
+        dir('ansible') {
+          sh '''
+            python3 -m venv ../venv
+            . ../venv/bin/activate
+            pip install --upgrade pip
+            pip install boto boto3 botocore
+          '''
+        }
       }
     }
 
     stage('Ansible - Install NGINX') {
       steps {
         dir('ansible') {
-          sh '''
-            . ../venv/bin/activate
-            ansible-playbook nginx.yml
-          '''
+          withEnv([
+            "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+            "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+            "AWS_DEFAULT_REGION=${AWS_REGION}"
+          ]) {
+            sh '''
+              . ../venv/bin/activate
+              ansible-playbook -i inventory_aws_ec2.yml nginx.yml
+            '''
+          }
         }
       }
     }
