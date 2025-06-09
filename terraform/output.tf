@@ -22,3 +22,10 @@ output "key_name" {
   value       = aws_key_pair.deployer.key_name
 }
 
+output "private_key_path" {
+  value = local_file.private_key.filename
+}
+
+output "public_ip" {
+  value = aws_instance.my_instance.public_ip
+}
