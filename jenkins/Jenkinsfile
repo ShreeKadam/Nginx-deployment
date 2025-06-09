@@ -45,10 +45,10 @@ pipeline {
     stage('Install NGINX with Ansible') {
       steps {
         dir('ansible') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds'
-          ]]) {
+          withCredentials([
+            file(credentialsId: 'shared-key-pem', variable: 'SSH_KEY_FILE'),
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
+          ]) {
             sh '''
               set -e
               python3 -m venv venv
@@ -56,6 +56,7 @@ pipeline {
               ./venv/bin/pip install -r requirements.txt
 
               export AWS_REGION=${AWS_REGION}
+              export ANSIBLE_PRIVATE_KEY_FILE=$SSH_KEY_FILE
 
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
               ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
