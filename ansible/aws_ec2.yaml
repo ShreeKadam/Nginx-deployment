@@ -1,22 +1,14 @@
----
 plugin: aws_ec2
-
-# AWS region to query
 regions:
   - us-east-1
-
-# Filter EC2 instances by tag Role=NGINX-Private
 filters:
-  tag:Role: NGINX-Private
-  instance-state-name: running
-
-# Use private IP address to connect (since instance is private)
+  "tag:Name": "NGINX-Private"
+keyed_groups:
+  - key: tags.Name
+    prefix: tag_
 hostnames:
   - private-ip-address
-
-# Group hosts by tag Role and Name (optional)
-keyed_groups:
-  - key: tags.Role
-    prefix: tag_Role_
-  - key: tags.Name
-    prefix: tag_Name_
+compose:
+  ansible_host: private-ip-address
+  ansible_ssh_private_key_file: ../terraform/private_key.pem
+  ansible_ssh_common_args: '-o ProxyCommand="ssh -W %h:%p -q ec2-user@<BASTION_IP> -i ../terraform/private_key.pem"'
