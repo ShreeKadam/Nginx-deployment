@@ -1,2 +1,4 @@
-ami_id   = "ami-02029c87fa31fb148"  # Example for Ubuntu 20.04 in us-east-1
-key_name = "your-key-name"
+region   = "us-east-1"
+vpc_cidr = "10.0.0.0/16"
+key_name = "shared-key"
+ami      = "ami-0c02fb55956c7d316"
