@@ -2,40 +2,53 @@ pipeline {
   agent any
 
   environment {
-    AWS_DEFAULT_REGION = 'us-east-1'
+    AWS_REGION = 'us-east-1'
   }
 
   stages {
-    stage('Terraform Init & Apply') {
+    stage('Checkout') {
       steps {
-        dir('terraform') {
+        git url: 'https://github.com/your-org/tool-evaluation.git', branch: 'main'
+      }
+    }
+
+    stage('Terraform Init & Apply') {
+      dir('terraform') {
+        steps {
           sh 'terraform init'
           sh 'terraform apply -auto-approve'
         }
       }
     }
 
-    stage('Get Bastion IP') {
+    stage('Write PEM Key') {
       steps {
         script {
-          bastion_ip = sh(script: 'terraform output -raw bastion_public_ip', returnStdout: true).trim()
-          writeFile file: 'ansible/ansible.cfg', text: library.replaceInFile(readFile('ansible/ansible.cfg'), '<BASTION_PUBLIC_IP>', bastion_ip)
+          def key = sh(script: "terraform -chdir=terraform output -raw private_key", returnStdout: true).trim()
+          writeFile file: 'terraform/private_key.pem', text: key
+          sh 'chmod 600 terraform/private_key.pem'
         }
       }
     }
 
-    stage('Install Python deps') {
+    stage('Install Boto and EC2 Plugin') {
       steps {
-        sh 'pip install -r ansible/requirements.txt'
+        sh 'pip install boto boto3 botocore'
       }
     }
 
-    stage('Run Ansible Playbook') {
-      steps {
-        dir('ansible') {
-          sh 'ansible-playbook nginx.yml'
+    stage('Ansible - Install NGINX') {
+      dir('ansible') {
+        steps {
+          sh 'ansible-playbook playbook.yml'
         }
       }
+    }
+  }
+
+  post {
+    always {
+      echo "Pipeline complete."
     }
   }
 }
