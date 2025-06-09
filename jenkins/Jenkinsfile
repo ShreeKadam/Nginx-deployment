@@ -1,17 +1,15 @@
+# Jenkinsfile
 pipeline {
   agent any
-
   environment {
     AWS_REGION = 'us-east-1'
   }
-
   stages {
     stage('Checkout') {
       steps {
         git url: 'https://github.com/your-org/tool-evaluation.git', branch: 'main'
       }
     }
-
     stage('Terraform Init & Apply') {
       dir('terraform') {
         steps {
@@ -20,7 +18,6 @@ pipeline {
         }
       }
     }
-
     stage('Write PEM Key') {
       steps {
         script {
@@ -30,13 +27,11 @@ pipeline {
         }
       }
     }
-
     stage('Install Boto and EC2 Plugin') {
       steps {
         sh 'pip install boto boto3 botocore'
       }
     }
-
     stage('Ansible - Install NGINX') {
       dir('ansible') {
         steps {
@@ -45,7 +40,6 @@ pipeline {
       }
     }
   }
-
   post {
     always {
       echo "Pipeline complete."
