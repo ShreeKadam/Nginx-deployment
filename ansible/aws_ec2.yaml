@@ -1,10 +1,22 @@
+---
 plugin: aws_ec2
+
+# AWS region to query
 regions:
-  - us-east-1        # Change this to your AWS region
+  - us-east-1
+
+# Filter EC2 instances by tag Role=NGINX-Private
 filters:
-  "tag:Name": "NGINX-Private"   # Filter EC2 instances by tag Name=NGINX-Private
-keyed_groups:
-  - key: tags.Name
-    prefix: tag
+  tag:Role: NGINX-Private
+  instance-state-name: running
+
+# Use private IP address to connect (since instance is private)
 hostnames:
-  - tag:Name
+  - private-ip-address
+
+# Group hosts by tag Role and Name (optional)
+keyed_groups:
+  - key: tags.Role
+    prefix: tag_Role_
+  - key: tags.Name
+    prefix: tag_Name_
