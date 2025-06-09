@@ -5,10 +5,6 @@ pipeline {
     AWS_REGION = 'us-east-1'
   }
 
-  parameters {
-    booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
-  }
-
   stages {
     stage('Checkout') {
       steps {
@@ -18,24 +14,24 @@ pipeline {
 
     stage('Terraform Init & Apply') {
       steps {
-        dir('terraform') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds'
-          ]]) {
-            sh '''
-              export AWS_REGION=${AWS_REGION}
-              terraform init
-              terraform apply -auto-approve
-            '''
-          }
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-creds'
+        ]]) {
+          sh '''
+            terraform -chdir=terraform init
+            terraform -chdir=terraform apply -auto-approve
+          '''
         }
       }
     }
 
     stage('Prepare PEM Key') {
       steps {
-        script {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-creds'
+        ]]) {
           sh '''
             aws s3 cp s3://your-secure-bucket/shared-key.pem ./shared-key.pem
             chmod 600 ./shared-key.pem
@@ -56,20 +52,9 @@ pipeline {
     stage('Install NGINX with Ansible') {
       steps {
         dir('ansible') {
-          withCredentials([
-            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
-          ]) {
+          withCredentials([file(credentialsId: 'shared-key-pem', variable: 'PEM_KEY')]) {
             sh '''
-              set -e
-              python3 -m venv venv
-              ./venv/bin/pip install --upgrade pip
-              ./venv/bin/pip install -r requirements.txt
-
-              export AWS_REGION=${AWS_REGION}
-              export ANSIBLE_PRIVATE_KEY_FILE=../shared-key.pem
-
-              ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
+              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml --private-key $PEM_KEY
             '''
           }
         }
@@ -78,19 +63,14 @@ pipeline {
 
     stage('Terraform Destroy (Optional)') {
       when {
-        expression { return params.DESTROY_INFRA == true }
+        expression { return false } // skip by default, enable if needed
       }
       steps {
-        dir('terraform') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds'
-          ]]) {
-            sh '''
-              export AWS_REGION=${AWS_REGION}
-              terraform destroy -auto-approve
-            '''
-          }
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-creds'
+        ]]) {
+          sh 'terraform -chdir=terraform destroy -auto-approve'
         }
       }
     }
