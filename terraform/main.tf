@@ -1,4 +1,3 @@
-
 data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "main" {
@@ -78,6 +77,7 @@ resource "aws_instance" "bastion" {
 
   tags = {
     Name = "bastion"
+    Project = "nginx"
   }
 }
 
@@ -89,8 +89,9 @@ resource "aws_instance" "nginx_private" {
   key_name               = var.key_name
 
   tags = {
-    Name = "nginx-private"
+    Name          = "nginx-private"
+    Project       = "nginx"
+    NGINX_Private = "yes"
   }
 }
-
 
