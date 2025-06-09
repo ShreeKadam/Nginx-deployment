@@ -1,6 +1,6 @@
-provider "aws" {
-  region = var.region
-}
+#provider "aws" {
+#  region = var.region
+#}
 
 resource "tls_private_key" "this" {
   algorithm = "RSA"
