@@ -2,13 +2,10 @@ plugin: aws_ec2
 regions:
   - us-east-1
 filters:
-  "tag:Name": "NGINX-Private"
+  tag:Role: nginx
 keyed_groups:
-  - key: tags.Name
-    prefix: tag_
+  - key: tags.Role
 hostnames:
   - private-ip-address
 compose:
-  ansible_host: private-ip-address
-  ansible_ssh_private_key_file: ../terraform/private_key.pem
-  ansible_ssh_common_args: '-o ProxyCommand="ssh -W %h:%p -q ec2-user@<BASTION_IP> -i ../terraform/private_key.pem"'
+  ansible_host: private_ip_address
