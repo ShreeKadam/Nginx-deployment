@@ -66,14 +66,14 @@ resource "aws_route_table" "private" {
   }
 }
 
+resource "aws_eip" "nat" {
+  vpc = true
+}
+
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public[0].id
   depends_on    = [aws_internet_gateway.igw]
-}
-
-resource "aws_eip" "nat" {
-  vpc = true
 }
 
 resource "aws_route" "private_nat_access" {
@@ -100,7 +100,7 @@ resource "aws_security_group" "bastion_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Adjust as needed for security
+    cidr_blocks = ["0.0.0.0/0"]  # Restrict to your IP range for better security in prod
   }
 
   egress {
@@ -125,14 +125,14 @@ resource "aws_security_group" "private_sg" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    security_groups = [aws_security_group.bastion_sg.id]
+    security_groups = [aws_security_group.bastion_sg.id] # only bastion can SSH
   }
 
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Allow HTTP traffic (adjust for your app)
+    cidr_blocks = ["0.0.0.0/0"] # HTTP traffic open
   }
 
   egress {
@@ -183,7 +183,8 @@ resource "aws_security_group" "alb_sg" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    # If ALB is internal, allow only from VPC or bastion or private subnet CIDR
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   egress {
@@ -198,12 +199,13 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
+# ALB (Internal)
 resource "aws_lb" "app_alb" {
   name               = "tool-eval-alb"
-  internal           = false
+  internal           = true  # <== set true for private ALB
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = aws_subnet.public[*].id
+  subnets            = aws_subnet.private[*].id  # attach to private subnets
 
   enable_deletion_protection = false
   idle_timeout               = 60
@@ -250,3 +252,16 @@ resource "aws_lb_target_group_attachment" "private_ec2" {
   port             = 80
 }
 
+# Outputs to use for Ansible and debugging
+output "bastion_public_ip" {
+  value = aws_instance.bastion.public_ip
+}
+
+output "private_ec2_private_ip" {
+  value = aws_instance.private_ec2.private_ip
+}
+
+output "private_key_pem" {
+  value     = tls_private_key.key.private_key_pem
+  sensitive = true
+}
