@@ -2,20 +2,10 @@ pipeline {
   agent any
 
   environment {
-    AWS_REGION = 'us-east-1'
-  }
-
-  parameters {
-    booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
+    AWS_REGION = 'us-east-1' // or your region
   }
 
   stages {
-    stage('Checkout') {
-      steps {
-        git url: 'https://github.com/ShreeKadam/tool-evaluation.git', branch: 'main'
-      }
-    }
-
     stage('Terraform Init & Apply') {
       steps {
         dir('terraform') {
@@ -33,7 +23,10 @@ pipeline {
     stage('Inject Bastion IP into Ansible Config') {
       steps {
         script {
-          def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_public_ip", returnStdout: true).trim()
+          def bastionIp = sh(
+            script: "terraform -chdir=terraform output -raw bastion_public_ip",
+            returnStdout: true
+          ).trim()
           sh "sed -i 's|<bastion_public_ip>|${bastionIp}|' ansible/ansible.cfg"
         }
       }
@@ -43,26 +36,14 @@ pipeline {
       steps {
         dir('ansible') {
           withCredentials([
-            file(credentialsId: 'shared-key-pem', variable: 'SSH_KEY'),
+            file(credentialsId: 'shared-key-pem', variable: 'SSH_KEY_FILE'),
             [
               $class: 'AmazonWebServicesCredentialsBinding',
               credentialsId: 'aws-creds'
             ]
           ]) {
             sh '''
-              set -e
-              mkdir -p ~/.ssh
-              cp $SSH_KEY ~/.ssh/shared-key.pem
-              chmod 600 ~/.ssh/shared-key.pem
-
-              python3 -m venv venv
-              ./venv/bin/pip install --upgrade pip
-              ./venv/bin/pip install -r requirements.txt
-
-              export AWS_REGION=${AWS_REGION}
-
-              ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              ./venv/bin/ansible-playbook -i aws_ec2.yaml --private-key ~/.ssh/shared-key.pem nginx.yml
+              ansible-playbook -i aws_ec2.yaml nginx.yml --private-key $SSH_KEY_FILE
             '''
           }
         }
@@ -71,7 +52,7 @@ pipeline {
 
     stage('Terraform Destroy (Optional)') {
       when {
-        expression { return params.DESTROY_INFRA == true }
+        expression { return false }  // Change to true if you want auto destroy
       }
       steps {
         dir('terraform') {
