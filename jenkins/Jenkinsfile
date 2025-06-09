@@ -13,8 +13,8 @@ pipeline {
     }
 
     stage('Terraform Init & Apply') {
-      dir('terraform') {
-        steps {
+      steps {
+        dir('terraform') {
           sh 'terraform init'
           sh 'terraform apply -auto-approve'
         }
@@ -38,8 +38,8 @@ pipeline {
     }
 
     stage('Ansible - Install NGINX') {
-      dir('ansible') {
-        steps {
+      steps {
+        dir('ansible') {
           sh 'ansible-playbook playbook.yml'
         }
       }
