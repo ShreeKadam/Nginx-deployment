@@ -1,16 +1,15 @@
 - name: Install NGINX on private EC2 via Bastion
-  hosts: tag_NGINX-Private
+  hosts: tag_NGINX_Private_yes
   gather_facts: yes
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
+
   tasks:
-    - name: Ensure nginx is installed
+    - name: Install nginx
       ansible.builtin.yum:
         name: nginx
         state: present
       become: yes
 
-    - name: Start and enable nginx service
+    - name: Start and enable nginx
       ansible.builtin.service:
         name: nginx
         state: started
