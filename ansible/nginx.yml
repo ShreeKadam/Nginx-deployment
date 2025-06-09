@@ -1,6 +1,6 @@
 - name: Install NGINX on private EC2 via Bastion
   hosts: all #tag_NGINX_Private_yes
-  gather_facts: yes
+  gather_facts: no
 
   tasks:
     - name: Install nginx
