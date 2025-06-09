@@ -43,16 +43,12 @@ pipeline {
       steps {
         dir('ansible') {
           sh '''
-            bash -c "
-              set -e
-              python3 -m venv venv
-              source venv/bin/activate
-              pip install --upgrade pip
-              pip install ansible boto boto3 botocore
-              pip install -r requirements.txt || true
-              venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              venv/bin/ansible-playbook nginx.yml
-            "
+            set -e
+            python3 -m venv venv
+            ./venv/bin/pip install --upgrade pip
+            ./venv/bin/pip install -r requirements.txt
+            ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
+            ./venv/bin/ansible-playbook nginx.yml
           '''
         }
       }
