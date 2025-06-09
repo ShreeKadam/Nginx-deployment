@@ -7,9 +7,13 @@ variable "vpc_cidr" {
 }
 
 variable "key_name" {
-  default = "shared-key"
+  description = "Name of the AWS key pair"
+  type        = string
+  default     = "deployer-key"
 }
 
 variable "ami" {
-  default = "ami-0c02fb55956c7d316" # Amazon Linux 2
+  description = "AMI ID for instances"
+  type        = string
+  default     = "ami-0c02fb55956c7d316"  # update as needed
 }
