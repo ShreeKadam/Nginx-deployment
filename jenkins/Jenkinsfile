@@ -12,16 +12,15 @@ pipeline {
       }
     }
 
-    stage('Terraform Init, Apply & Destroy') {
+    stage('Terraform Init & Apply') {
       steps {
         withCredentials([[
           $class: 'AmazonWebServicesCredentialsBinding',
-          credentialsId: 'aws-creds'  // Replace with your Jenkins AWS credentials ID
+          credentialsId: 'aws-creds'  // <-- Your Jenkins AWS credentials ID
         ]]) {
           dir('terraform') {
             sh 'terraform init'
             sh 'terraform apply -auto-approve'
-            sh 'terraform destroy -auto-approve'
           }
         }
       }
@@ -37,33 +36,30 @@ pipeline {
       }
     }
 
-    stage('Install Python venv and AWS dependencies') {
+    stage('Install Boto and EC2 Plugin') {
       steps {
-        sh '''
-          python3 -m venv venv
-          . venv/bin/activate
-          pip install --upgrade pip
-          pip install boto boto3 botocore ansible
-        '''
+        dir('ansible') {
+          sh '''
+            python3 -m venv ../venv
+            . ../venv/bin/activate
+            pip install --upgrade pip
+            pip install boto boto3 botocore
+          '''
+        }
       }
     }
 
-    stage('Ansible - Install NGINX on Private EC2') {
+    stage('Ansible - Install NGINX') {
       steps {
         dir('ansible') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds'
-          ]]) {
+          withEnv([
+            "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+            "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+            "AWS_DEFAULT_REGION=${AWS_REGION}"
+          ]) {
             sh '''
-              export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-              export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-              export AWS_REGION=us-east-1
-
               . ../venv/bin/activate
-
-              ansible-inventory -i inventory_aws_ec2.yml --list
-              ansible-playbook -i inventory_aws_ec2.yml nginx.yml --private-key ../terraform/private_key.pem
+              ansible-playbook -i inventory_aws_ec2.yml nginx.yml
             '''
           }
         }
