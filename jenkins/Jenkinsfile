@@ -15,8 +15,10 @@ pipeline {
     stage('Terraform Init & Apply') {
       steps {
         dir('terraform') {
-          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
-                           credentialsId: 'aws-creds']]) {
+          withCredentials([[
+            $class: 'AmazonWebServicesCredentialsBinding',
+            credentialsId: 'aws-creds'
+          ]]) {
             sh 'terraform init'
             sh 'terraform apply -auto-approve'
           }
@@ -37,9 +39,12 @@ pipeline {
       steps {
         dir('ansible') {
           sh '''
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
             pip install -r requirements.txt
-            ansible-inventory -i aws_ec2.yaml --graph
-            ansible-playbook nginx.yml
+            venv/bin/ansible-inventory -i aws_ec2.yaml --graph
+            venv/bin/ansible-playbook nginx.yml
           '''
         }
       }
