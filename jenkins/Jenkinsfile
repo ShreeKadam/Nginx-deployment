@@ -52,7 +52,7 @@ pipeline {
         dir('ansible') {
           sh '''
             . ../venv/bin/activate
-            ansible-playbook playbook.yml
+            ansible-playbook nginx.yml
           '''
         }
       }
