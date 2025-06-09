@@ -3,6 +3,7 @@ pipeline {
 
   environment {
     AWS_REGION = 'us-east-1'
+    PEM_KEY_PATH = '/var/lib/jenkins/go/pkg/mod/cloud.google.com/go/auth@v0.16.1/credentials/internal/externalaccount/testdata/x509_private_key.pem'
   }
 
   parameters {
@@ -45,22 +46,21 @@ pipeline {
     stage('Install NGINX with Ansible') {
       steps {
         dir('ansible') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds'
-          ]]) {
-            sh '''
-              set -e
-              python3 -m venv venv
-              ./venv/bin/pip install --upgrade pip
-              ./venv/bin/pip install -r requirements.txt
+          sh """
+            set -e
+            python3 -m venv venv
+            ./venv/bin/pip install --upgrade pip
+            ./venv/bin/pip install -r requirements.txt
 
-              export AWS_REGION=${AWS_REGION}
+            chmod 600 ${PEM_KEY_PATH}
 
-              ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
-            '''
-          }
+            export AWS_REGION=${AWS_REGION}
+
+            ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
+
+            # Run ansible-playbook with explicit private key path
+            ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml --private-key ${PEM_KEY_PATH}
+          """
         }
       }
     }
