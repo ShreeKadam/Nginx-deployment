@@ -2,10 +2,20 @@ pipeline {
   agent any
 
   environment {
-    AWS_REGION = 'us-east-1' // or your region
+    AWS_REGION = 'us-east-1'
+  }
+
+  parameters {
+    booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
   }
 
   stages {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/ShreeKadam/tool-evaluation.git', branch: 'main'
+      }
+    }
+
     stage('Terraform Init & Apply') {
       steps {
         dir('terraform') {
@@ -13,8 +23,11 @@ pipeline {
             $class: 'AmazonWebServicesCredentialsBinding',
             credentialsId: 'aws-creds'
           ]]) {
-            sh 'terraform init'
-            sh 'terraform apply -auto-approve'
+            sh '''
+              export AWS_REGION=${AWS_REGION}
+              terraform init
+              terraform apply -auto-approve
+            '''
           }
         }
       }
@@ -23,10 +36,7 @@ pipeline {
     stage('Inject Bastion IP into Ansible Config') {
       steps {
         script {
-          def bastionIp = sh(
-            script: "terraform -chdir=terraform output -raw bastion_public_ip",
-            returnStdout: true
-          ).trim()
+          def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_public_ip", returnStdout: true).trim()
           sh "sed -i 's|<bastion_public_ip>|${bastionIp}|' ansible/ansible.cfg"
         }
       }
@@ -35,15 +45,20 @@ pipeline {
     stage('Install NGINX with Ansible') {
       steps {
         dir('ansible') {
-          withCredentials([
-            file(credentialsId: 'shared-key-pem', variable: 'SSH_KEY_FILE'),
-            [
-              $class: 'AmazonWebServicesCredentialsBinding',
-              credentialsId: 'aws-creds'
-            ]
-          ]) {
+          withCredentials([[
+            $class: 'AmazonWebServicesCredentialsBinding',
+            credentialsId: 'aws-creds'
+          ]]) {
             sh '''
-              ansible-playbook -i aws_ec2.yaml nginx.yml --private-key $SSH_KEY_FILE
+              set -e
+              python3 -m venv venv
+              ./venv/bin/pip install --upgrade pip
+              ./venv/bin/pip install -r requirements.txt
+
+              export AWS_REGION=${AWS_REGION}
+
+              ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
+              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
             '''
           }
         }
@@ -52,7 +67,7 @@ pipeline {
 
     stage('Terraform Destroy (Optional)') {
       when {
-        expression { return false }  // Change to true if you want auto destroy
+        expression { return params.DESTROY_INFRA == true }
       }
       steps {
         dir('terraform') {
@@ -60,7 +75,10 @@ pipeline {
             $class: 'AmazonWebServicesCredentialsBinding',
             credentialsId: 'aws-creds'
           ]]) {
-            sh 'terraform destroy -auto-approve'
+            sh '''
+              export AWS_REGION=${AWS_REGION}
+              terraform destroy -auto-approve
+            '''
           }
         }
       }
