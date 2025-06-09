@@ -33,6 +33,17 @@ pipeline {
       }
     }
 
+    stage('Prepare PEM Key') {
+      steps {
+        script {
+          sh '''
+            aws s3 cp s3://your-secure-bucket/shared-key.pem ./shared-key.pem
+            chmod 600 ./shared-key.pem
+          '''
+        }
+      }
+    }
+
     stage('Inject Bastion IP into Ansible Config') {
       steps {
         script {
@@ -46,7 +57,6 @@ pipeline {
       steps {
         dir('ansible') {
           withCredentials([
-            file(credentialsId: 'shared-key-pem', variable: 'SSH_KEY_FILE'),
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
             sh '''
@@ -56,7 +66,7 @@ pipeline {
               ./venv/bin/pip install -r requirements.txt
 
               export AWS_REGION=${AWS_REGION}
-              export ANSIBLE_PRIVATE_KEY_FILE=$SSH_KEY_FILE
+              export ANSIBLE_PRIVATE_KEY_FILE=../shared-key.pem
 
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
               ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
