@@ -16,7 +16,7 @@ pipeline {
       steps {
         dir('terraform') {
           withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
-                           credentialsId: 'aws-cred-id']]) {
+                           credentialsId: 'aws-creds']]) {
             sh 'terraform init'
             sh 'terraform apply -auto-approve'
           }
