@@ -7,10 +7,10 @@ resource "tls_private_key" "this" {
   rsa_bits  = 2048
 }
 
-resource "aws_key_pair" "deployer" {
-  key_name   = var.key_name
-  public_key = tls_private_key.this.public_key_openssh
-}
+#resource "aws_key_pair" "deployer" {
+#  key_name   = var.key_name
+#  public_key = tls_private_key.this.public_key_openssh
+#}
 
 resource "local_file" "pem_key" {
   filename = "${path.module}/../keys/${var.key_name}.pem"
