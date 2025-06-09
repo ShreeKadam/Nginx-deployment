@@ -3,6 +3,8 @@ pipeline {
 
   environment {
     AWS_REGION = 'us-east-1'
+    ANSIBLE_HOST_KEY_CHECKING = 'False'   // Disable SSH host key checking
+    ANSIBLE_CONFIG = 'ansible/ansible.cfg'  // Ensure ansible uses your config
   }
 
   stages {
@@ -16,7 +18,7 @@ pipeline {
       steps {
         withCredentials([[
           $class: 'AmazonWebServicesCredentialsBinding',
-          credentialsId: 'aws-creds'  // <-- Your Jenkins AWS credentials ID
+          credentialsId: 'aws-creds'  // Your Jenkins AWS credentials ID here
         ]]) {
           dir('terraform') {
             sh 'terraform init'
@@ -36,30 +38,27 @@ pipeline {
       }
     }
 
-    stage('Install Boto and EC2 Plugin') {
+    stage('Setup Python Virtual Env and Install Boto') {
       steps {
-        dir('ansible') {
-          sh '''
-            python3 -m venv ../venv
-            . ../venv/bin/activate
-            pip install --upgrade pip
-            pip install boto boto3 botocore
-          '''
-        }
+        sh '''
+          python3 -m venv venv
+          . venv/bin/activate
+          pip install --upgrade pip
+          pip install boto boto3 botocore ansible boto3 boto
+        '''
       }
     }
 
-    stage('Ansible - Install NGINX') {
+    stage('Ansible - Install NGINX on Private EC2') {
       steps {
         dir('ansible') {
-          withEnv([
-            "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
-            "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
-            "AWS_DEFAULT_REGION=${AWS_REGION}"
-          ]) {
+          withCredentials([[
+            $class: 'AmazonWebServicesCredentialsBinding',
+            credentialsId: 'aws-creds' 
+          ]]) {
             sh '''
               . ../venv/bin/activate
-              ansible-playbook -i inventory_aws_ec2.yml nginx.yml
+              ansible-playbook -i inventory_aws_ec2.yml nginx.yml --private-key ../terraform/private_key.pem
             '''
           }
         }
@@ -73,3 +72,4 @@ pipeline {
     }
   }
 }
+
