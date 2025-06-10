@@ -58,8 +58,8 @@ pipeline {
 
               export AWS_REGION=${AWS_REGION}
 
-              venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
+              ansible-inventory -i aws_ec2.yaml --graph
+              ansible-playbook -i aws_ec2.yaml nginx.yml
             '''
           }
         }
