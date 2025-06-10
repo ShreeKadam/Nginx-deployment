@@ -57,9 +57,10 @@ pipeline {
               pip install -r requirements.txt
 
               export AWS_REGION=${AWS_REGION}
+              export ANSIBLE_PYTHON_INTERPRETER=$(pwd)/venv/bin/python
 
-              ansible-inventory -i aws_ec2.yaml --graph
-              ansible-playbook -i aws_ec2.yaml nginx.yml
+              ansible-inventory -i aws_ec2.yaml --graph -e ansible_python_interpreter=$ANSIBLE_PYTHON_INTERPRETER
+              ansible-playbook -i aws_ec2.yaml nginx.yml -e ansible_python_interpreter=$ANSIBLE_PYTHON_INTERPRETER
             '''
           }
         }
