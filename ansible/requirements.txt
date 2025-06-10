@@ -2,4 +2,3 @@ boto3
 botocore
 boto
 ansible>=2.10
-amazon.aws
