@@ -55,8 +55,15 @@ pipeline {
               ./venv/bin/pip install --upgrade pip
               ./venv/bin/pip install -r requirements.txt
 
+              # Install amazon.aws Ansible collection
+              ./venv/bin/ansible-galaxy collection install amazon.aws
+
+              # Export AWS credentials for dynamic inventory plugin
+              export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+              export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
               export AWS_REGION=${AWS_REGION}
 
+              # Validate and use the dynamic inventory
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
               ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
             '''
@@ -85,3 +92,4 @@ pipeline {
     }
   }
 }
+
