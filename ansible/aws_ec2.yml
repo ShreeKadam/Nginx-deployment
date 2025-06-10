@@ -1,9 +1,9 @@
-plugin: aws_ec2
+plugin: amazon.aws.aws_ec2
 regions:
   - us-east-1
 
 filters:
-  "tag:NGINX_Private": "yes"
+  tag:NGINX_Private: "yes"
 
 keyed_groups:
   - key: tags.Name
@@ -14,4 +14,9 @@ keyed_groups:
     prefix: tag_NGINX_Private_
 
 hostnames:
-  - tag:Name
+  - private-ip-address  # Private IP for use with Bastion jump
+
+compose:
+  ansible_host: private_ip_address
+
+strict: false
