@@ -7,6 +7,26 @@ resource "aws_vpc" "main" {
   }
 }
 
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "tool-eval-igw"
+  }
+}
+
+resource "aws_eip" "nat_eip" {
+  vpc = true
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public[0].id
+  depends_on    = [aws_internet_gateway.igw]
+  tags = {
+    Name = "tool-eval-nat"
+  }
+}
+
 resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.main.id
@@ -60,6 +80,14 @@ resource "aws_security_group" "private_ec2_sg" {
     security_groups = [aws_security_group.bastion_sg.id]
   }
 
+  ingress {
+  from_port       = 22
+  to_port         = 22
+  protocol        = "tcp"
+  security_groups = [aws_security_group.bastion_sg.id]
+  }
+
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -76,7 +104,7 @@ resource "aws_instance" "bastion" {
   key_name               = var.key_name
 
   tags = {
-    Name = "bastion"
+    Name    = "bastion"
     Project = "nginx"
   }
 }
@@ -95,3 +123,48 @@ resource "aws_instance" "nginx_private" {
   }
 }
 
+resource "aws_lb" "nginx_alb" {
+  name               = "nginx-alb"
+  internal           = false
+  load_balancer_type = "application"
+  subnets            = aws_subnet.public[*].id
+  security_groups    = [aws_security_group.bastion_sg.id]
+
+  tags = {
+    Name = "nginx-alb"
+  }
+}
+
+resource "aws_lb_target_group" "nginx_tg" {
+  name     = "nginx-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.main.id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+}
+
+resource "aws_lb_target_group_attachment" "nginx_attach" {
+  target_group_arn = aws_lb_target_group.nginx_tg.arn
+  target_id        = aws_instance.nginx_private.id
+  port             = 80
+}
+
+resource "aws_lb_listener" "nginx_listener" {
+  load_balancer_arn = aws_lb.nginx_alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.nginx_tg.arn
+  }
+}
