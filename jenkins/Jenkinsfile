@@ -52,13 +52,14 @@ pipeline {
             sh '''
               set -e
               python3 -m venv venv
-              ./venv/bin/pip install --upgrade pip
-              ./venv/bin/pip install -r requirements.txt
+              . venv/bin/activate
+              pip install --upgrade pip
+              pip install -r requirements.txt
 
               export AWS_REGION=${AWS_REGION}
 
-              ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
+              venv/bin/ansible-inventory -i aws_ec2.yaml --graph
+              venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
             '''
           }
         }
