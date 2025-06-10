@@ -14,6 +14,46 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
+resource "aws_subnet" "public" {
+  count                   = 2
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4, count.index)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = true
+  tags = {
+    Name = "public-subnet-${count.index}"
+  }
+}
+
+resource "aws_subnet" "private" {
+  count             = 2
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(var.vpc_cidr, 4, count.index + 2)
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+  tags = {
+    Name = "private-subnet-${count.index}"
+  }
+}
+
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "tool-eval-public-rt"
+  }
+}
+
+resource "aws_route_table_association" "public_assoc" {
+  count          = 2
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public_rt.id
+}
+
 resource "aws_eip" "nat_eip" {
   vpc = true
 }
@@ -27,25 +67,23 @@ resource "aws_nat_gateway" "nat" {
   }
 }
 
-resource "aws_subnet" "public" {
-  count                   = 2
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+
   tags = {
-    Name = "public-subnet-${count.index}"
+    Name = "tool-eval-private-rt"
   }
 }
 
-resource "aws_subnet" "private" {
-  count             = 2
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 2)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-  tags = {
-    Name = "private-subnet-${count.index}"
-  }
+resource "aws_route_table_association" "private_assoc" {
+  count          = 2
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private_rt.id
 }
 
 resource "aws_security_group" "bastion_sg" {
@@ -70,7 +108,7 @@ resource "aws_security_group" "bastion_sg" {
 
 resource "aws_security_group" "private_ec2_sg" {
   name        = "private-ec2-sg"
-  description = "Allow HTTP from Bastion"
+  description = "Allow HTTP and SSH from Bastion"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -81,12 +119,11 @@ resource "aws_security_group" "private_ec2_sg" {
   }
 
   ingress {
-  from_port       = 22
-  to_port         = 22
-  protocol        = "tcp"
-  security_groups = [aws_security_group.bastion_sg.id]
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion_sg.id]
   }
-
 
   egress {
     from_port   = 0
