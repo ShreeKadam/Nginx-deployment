@@ -3,11 +3,13 @@
   gather_facts: yes
 
   tasks:
-    - name: Install nginx
-      ansible.builtin.yum:
-        name: nginx
-        state: present
-      become: yes
+  - name: Install nginx
+    apt:
+      name: nginx
+      state: present
+      update_cache: yes
+    when: ansible_facts.os_family == "Debian"
+
 
     - name: Start and enable nginx
       ansible.builtin.service:
