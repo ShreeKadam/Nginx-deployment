@@ -22,4 +22,5 @@ variable "instance_type" {
 variable "key_name" {
   description = "Key pair name to SSH into EC2 instances"
   type        = string
+  default     = "nginx"
 }
