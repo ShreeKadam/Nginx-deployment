@@ -1,12 +1,12 @@
 pipeline {
   agent any
 
-  environment {
-    AWS_REGION = 'us-east-1'
-  }
-
   parameters {
     booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
+  }
+
+  environment {
+    AWS_REGION = 'us-east-1'
   }
 
   stages {
@@ -100,4 +100,3 @@ pipeline {
     }
   }
 }
-
