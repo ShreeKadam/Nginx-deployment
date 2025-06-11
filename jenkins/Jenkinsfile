@@ -19,10 +19,10 @@ pipeline {
     stage('Terraform Init & Apply') {
       steps {
         dir('terraform') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds'
-          ]]) {
+          withCredentials([
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred'],
+            sshUserPrivateKey(credentialsId: 'nginx_key', keyFileVariable: 'SSH_KEY')
+          ]) {
             sh '''
               export AWS_REGION=${AWS_REGION}
               terraform init
