@@ -15,7 +15,7 @@ pipeline {
       steps {
         dir('terraform') {
           withCredentials([
-            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred']
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred']
           ]) {
             sh '''
               export AWS_REGION=${AWS_REGION}
@@ -33,7 +33,7 @@ pipeline {
     stage('Inject Bastion IP and PEM into Ansible Config') {
       steps {
         withCredentials([
-          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred'],
+          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred'],
           [$class: 'SSHUserPrivateKeyBinding', credentialsId: 'nginx_key', keyFileVariable: 'SSH_KEY']
         ]) {
           script {
