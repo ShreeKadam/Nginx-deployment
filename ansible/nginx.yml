@@ -1,7 +1,8 @@
 - name: Install NGINX on private EC2 via Bastion
-  hosts: all  # tag_NGINX_Private_yes
+  hosts: all
+  become: true
+  remote_user: ubuntu
   gather_facts: yes
-  become: yes  # Ensure privilege escalation is enabled for all tasks
 
   tasks:
     - name: Install nginx (only on Debian-based systems)
@@ -12,7 +13,8 @@
       when: ansible_facts.os_family == "Debian"
 
     - name: Start and enable nginx
-      service:
+      ansible.builtin.service:
         name: nginx
         state: started
-        enabled: yes
+        enabled: true
+
