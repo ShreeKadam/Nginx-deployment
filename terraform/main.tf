@@ -147,14 +147,15 @@ resource "aws_instance" "bastion" {
 }
 
 resource "aws_instance" "nginx_private" {
+  count                  = var.private_instance_count
   ami                    = var.ami_id
   instance_type          = var.instance_type
-  subnet_id              = aws_subnet.private[0].id
+  subnet_id              = aws_subnet.private[count.index % length(aws_subnet.private)].id
   vpc_security_group_ids = [aws_security_group.private_ec2_sg.id]
   key_name               = var.key_name
 
   tags = {
-    Name          = "nginx-private"
+    Name          = "nginx-private-${count.index}"
     Project       = "nginx"
     NGINX_Private = "yes"
   }
@@ -190,9 +191,10 @@ resource "aws_lb_target_group" "nginx_tg" {
 }
 
 resource "aws_lb_target_group_attachment" "nginx_attach" {
-  target_group_arn = aws_lb_target_group.nginx_tg.arn
-  target_id        = aws_instance.nginx_private.id
-  port             = 80
+  count             = var.private_instance_count
+  target_group_arn  = aws_lb_target_group.nginx_tg.arn
+  target_id         = aws_instance.nginx_private[count.index].id
+  port              = 80
 }
 
 resource "aws_lb_listener" "nginx_listener" {
