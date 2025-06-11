@@ -3,9 +3,8 @@ output "bastion_public_ip" {
 }
 
 output "private_key_path" {
-  value = local_file.private_key_pem.filename
+  value = abspath(local_file.private_key_pem.filename)
 }
-
 
 output "vpc_id" {
   value = aws_vpc.main.id
