@@ -10,23 +10,16 @@ pipeline {
   }
 
   stages {
-    stage('Checkout') {
-      steps {
-        git url: 'https://github.com/ShreeKadam/tool-evaluation.git', branch: 'main'
-      }
-    }
-
+    // Terraform Apply
     stage('Terraform Init & Apply') {
       steps {
         dir('terraform') {
           withCredentials([
-            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred']
           ]) {
             sh '''
               export AWS_REGION=${AWS_REGION}
               terraform init
-              terraform fmt
-              terraform validate
               terraform apply -auto-approve
             '''
           }
@@ -34,10 +27,11 @@ pipeline {
       }
     }
 
+    // Inject SSH key path & Bastion IP into ansible.cfg
     stage('Inject Bastion IP and PEM into Ansible Config') {
       steps {
         withCredentials([
-          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds'],
+          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred'],
           [$class: 'SSHUserPrivateKeyBinding', credentialsId: 'nginx_key', keyFileVariable: 'SSH_KEY']
         ]) {
           script {
@@ -49,7 +43,7 @@ pipeline {
               sed -i 's|<private_key_path>|${SSH_KEY}|' ansible/ansible.cfg
             """
 
-            // Optionally update filters in aws_ec2.yaml if needed
+            // Optional: update aws_ec2.yaml tag filter
             sh """
               sed -i 's|tag:Type: webserver|tag:NGINX_Private: yes|' ansible/aws_ec2.yaml || true
             """
@@ -58,17 +52,17 @@ pipeline {
       }
     }
 
+    // Run Ansible
     stage('Install NGINX with Ansible') {
       steps {
         dir('ansible') {
           withCredentials([
-            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds'],
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred'],
             [$class: 'SSHUserPrivateKeyBinding', credentialsId: 'nginx_key', keyFileVariable: 'SSH_KEY']
           ]) {
             sh '''
               set -e
               python3 -m venv venv
-              ./venv/bin/pip install --upgrade pip
               ./venv/bin/pip install -r requirements.txt
 
               ./venv/bin/ansible-galaxy collection install amazon.aws
@@ -78,7 +72,6 @@ pipeline {
               export AWS_REGION=${AWS_REGION}
 
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-
               ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
             '''
           }
@@ -86,6 +79,7 @@ pipeline {
       }
     }
 
+    // Optional Destroy
     stage('Terraform Destroy (Optional)') {
       when {
         expression { return params.DESTROY_INFRA == true }
@@ -93,7 +87,7 @@ pipeline {
       steps {
         dir('terraform') {
           withCredentials([
-            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred']
           ]) {
             sh '''
               export AWS_REGION=${AWS_REGION}
