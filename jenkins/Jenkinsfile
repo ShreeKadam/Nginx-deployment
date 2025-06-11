@@ -10,8 +10,12 @@ pipeline {
   }
 
   stages {
-    // Terraform Apply
+
+    // Provisioning logic should only run if DESTROY_INFRA is false
     stage('Terraform Init & Apply') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
       steps {
         dir('terraform') {
           withCredentials([
@@ -29,8 +33,10 @@ pipeline {
       }
     }
 
-    // Inject SSH key path & Bastion IP into ansible.cfg
     stage('Inject Bastion IP and PEM into Ansible Config') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
       steps {
         withCredentials([
           [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds'],
@@ -39,13 +45,11 @@ pipeline {
           script {
             def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_public_ip", returnStdout: true).trim()
 
-            // Replace placeholders in ansible.cfg
             sh """
               sed -i 's|<bastion_public_ip>|${bastionIp}|' ansible/ansible.cfg
               sed -i 's|<private_key_path>|${SSH_KEY}|' ansible/ansible.cfg
             """
 
-            // Optional: update aws_ec2.yaml tag filter
             sh """
               sed -i 's|tag:Type: webserver|tag:NGINX_Private: yes|' ansible/aws_ec2.yaml || true
             """
@@ -54,8 +58,10 @@ pipeline {
       }
     }
 
-    // Run Ansible
     stage('Install NGINX with Ansible') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
       steps {
         dir('ansible') {
           withCredentials([
@@ -80,7 +86,7 @@ pipeline {
         }
       }
     }
-            // Optional Destroy
+
     stage('Terraform Destroy (Optional)') {
       when {
         expression { return params.DESTROY_INFRA == true }
