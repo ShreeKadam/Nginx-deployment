@@ -35,11 +35,17 @@ pipeline {
       }
     }
 
-    stage('Inject Bastion IP into Ansible Config') {
+    stage('Inject Bastion IP and PEM into Ansible Config') {
       steps {
         script {
           def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_public_ip", returnStdout: true).trim()
-          sh "sed -i 's|<bastion_public_ip>|${bastionIp}|' ansible/ansible.cfg"
+          def privateKeyPath = sh(script: "terraform -chdir=terraform output -raw private_key_path", returnStdout: true).trim()
+          
+          // Update ansible.cfg placeholders
+          sh """
+            sed -i 's|<bastion_public_ip>|${bastionIp}|' ansible/ansible.cfg
+            sed -i 's|<private_key_path>|${privateKeyPath}|' ansible/ansible.cfg
+          """
         }
       }
     }
@@ -60,13 +66,14 @@ pipeline {
               # Install amazon.aws Ansible collection
               ./venv/bin/ansible-galaxy collection install amazon.aws
 
-              # Export AWS credentials for dynamic inventory plugin
               export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
               export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
               export AWS_REGION=${AWS_REGION}
 
-              # Validate and use the dynamic inventory
+              # Confirm dynamic inventory is working
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
+
+              # Run playbook to install NGINX on private EC2
               ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
             '''
           }
@@ -94,4 +101,3 @@ pipeline {
     }
   }
 }
-
