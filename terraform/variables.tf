@@ -24,3 +24,9 @@ variable "key_name" {
   type        = string
   default     = "nginx"
 }
+
+variable "private_instance_count" {
+  description = "Number of private EC2 instances"
+  type        = number
+  default     = 2
+}
