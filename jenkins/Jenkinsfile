@@ -41,11 +41,15 @@ pipeline {
           def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_public_ip", returnStdout: true).trim()
           def privateKeyPath = sh(script: "terraform -chdir=terraform output -raw private_key_path", returnStdout: true).trim()
 
-          // Replace placeholders in ansible.cfg and aws_ec2.yaml
+          // Update ansible.cfg placeholders
           sh """
             sed -i 's|<bastion_public_ip>|${bastionIp}|' ansible/ansible.cfg
             sed -i 's|<private_key_path>|${privateKeyPath}|' ansible/ansible.cfg
-            sed -i 's|<private_key_path>|${privateKeyPath}|' ansible/aws_ec2.yaml
+          """
+
+          // Also update filters in aws_ec2.yaml to match tag NGINX_Private = yes
+          sh """
+            sed -i 's|tag:Type: webserver|tag:NGINX_Private: yes|' ansible/aws_ec2.yaml || true
           """
         }
       }
@@ -64,14 +68,17 @@ pipeline {
               ./venv/bin/pip install --upgrade pip
               ./venv/bin/pip install -r requirements.txt
 
+              # Install amazon.aws Ansible collection
               ./venv/bin/ansible-galaxy collection install amazon.aws
 
               export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
               export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
               export AWS_REGION=${AWS_REGION}
 
+              # Confirm dynamic inventory is working
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
 
+              # Run playbook to install NGINX on private EC2
               ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
             '''
           }
@@ -99,3 +106,4 @@ pipeline {
     }
   }
 }
+
