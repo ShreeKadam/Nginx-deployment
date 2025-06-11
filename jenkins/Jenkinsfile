@@ -10,6 +10,24 @@ pipeline {
   }
 
   stages {
+        // Optional Destroy
+    stage('Terraform Destroy (Optional)') {
+      when {
+        expression { return params.DESTROY_INFRA == true }
+      }
+      steps {
+        dir('terraform') {
+          withCredentials([
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred']
+          ]) {
+            sh '''
+              export AWS_REGION=${AWS_REGION}
+              terraform destroy -auto-approve
+            '''
+          }
+        }
+      }
+    }
     // Terraform Apply
     stage('Terraform Init & Apply') {
       steps {
@@ -75,25 +93,6 @@ pipeline {
 
               ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
               ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
-            '''
-          }
-        }
-      }
-    }
-
-    // Optional Destroy
-    stage('Terraform Destroy (Optional)') {
-      when {
-        expression { return params.DESTROY_INFRA == true }
-      }
-      steps {
-        dir('terraform') {
-          withCredentials([
-            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws_cred']
-          ]) {
-            sh '''
-              export AWS_REGION=${AWS_REGION}
-              terraform destroy -auto-approve
             '''
           }
         }
