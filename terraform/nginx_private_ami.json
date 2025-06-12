@@ -1,0 +1,53 @@
+{
+  "variables": {
+    "aws_region": "us-east-1",
+    "ami_name": "nginx-private-ami"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "region": "{{user `aws_region`}}",
+      "instance_type": "t2.micro",
+      "ssh_username": "ubuntu",
+      "associate_public_ip_address": true,
+      "source_ami_filter": {
+        "filters": {
+          "name": "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*",
+          "virtualization-type": "hvm",
+          "root-device-type": "ebs"
+        },
+        "owners": ["099720109477"],
+        "most_recent": true
+      },
+      "ami_name": "{{user `ami_name`}}-{{timestamp}}",
+      "tags": {
+        "Name": "nginx-private",
+        "Project": "nginx",
+        "NGINX_Private": "yes"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo apt-get update -y",
+        "sudo apt-get install nginx -y",
+        "sudo systemctl enable nginx",
+        "sudo systemctl start nginx"
+      ]
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "manifest",
+      "output": "manifest.json"
+    },
+    {
+      "type": "shell-local",
+      "inline": [
+        "echo '{{ .ArtifactId }}' | awk -F ':' '{print $2}' | tee ami_id.txt"
+      ]
+    }
+  ]
+}
