@@ -130,12 +130,13 @@ pipeline {
       }
     }
 
+    // New Approval Stage after Terraform Plan and before Terraform Destroy
     stage('Approve Terraform Destroy') {
       when {
         expression { return params.DESTROY_INFRA }
       }
       steps {
-        input message: 'Are you sure you want to destroy the infrastructure?'
+        input message: 'Are you sure you want to proceed with Terraform Destroy?'
       }
     }
 
