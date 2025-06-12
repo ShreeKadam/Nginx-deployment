@@ -33,8 +33,8 @@ source "amazon-ebs" "nginx_private" {
     owners      = ["099720109477"]
   }
 
-  # ✅ Cleaned AMI name to remove invalid characters
-  ami_name = "${var.ami_name}-${timestamp() | clean_resource_name}"
+  # ✅ Corrected usage of clean_resource_name()
+  ami_name = "${clean_resource_name(var.ami_name)}-${timestamp()}"
 
   tags = {
     Name          = "nginx-private"
