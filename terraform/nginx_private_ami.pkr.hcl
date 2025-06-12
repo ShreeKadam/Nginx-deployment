@@ -1,7 +1,7 @@
 packer {
   required_plugins {
     amazon = {
-      version = "1.3.7"
+      version = ">= 1.11.2"
       source  = "github.com/hashicorp/amazon"
     }
   }
@@ -33,7 +33,9 @@ source "amazon-ebs" "nginx_private" {
     owners      = ["099720109477"]
   }
 
-  ami_name = "${var.ami_name}-${timestamp()}"
+  # ✅ Cleaned AMI name to remove invalid characters
+  ami_name = "${var.ami_name}-${timestamp() | clean_resource_name}"
+
   tags = {
     Name          = "nginx-private"
     Project       = "nginx"
