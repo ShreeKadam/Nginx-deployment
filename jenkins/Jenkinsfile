@@ -1,8 +1,5 @@
 pipeline {
   agent any
-  tools {
-    Packer 'packer1' // must match the name configured in Global Tool Config
-  }
 
   parameters {
     booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
@@ -10,7 +7,6 @@ pipeline {
 
   environment {
     AWS_REGION = 'us-east-1'
-    PACKER_BIN = "${env.WORKSPACE}/packer/bin"
   }
 
   stages {
@@ -24,34 +20,29 @@ pipeline {
           withCredentials([
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
-            sh '''
-              set -e
-              mkdir -p ../packer/bin
-              export PATH=$PATH:$(pwd)/../packer/bin
+            withTool(name: 'packer1', type: 'biz.neustar.jenkins.plugins.packer.PackerInstallation') {
+              sh '''
+                set -e
+                export PATH=$PATH:${PACKER}
 
-              # Download Packer if not already present
-              if ! ../packer/bin/packer -v &> /dev/null; then
-                echo "Downloading Packer..."
-                wget https://releases.hashicorp.com/packer/1.10.0/packer_1.10.0_linux_amd64.zip
-                unzip -o packer_1.10.0_linux_amd64.zip -d ../packer/bin
-                chmod +x ../packer/bin/packer
-              fi
+                echo "Packer version:"
+                packer version
 
-              ../packer/bin/packer --version
+                # Move to packer directory and build AMI
+                cd ../packer
 
-              # Run Packer with JSON template
-              cd ../packer
-              ../packer/bin/packer build nginx_private_ami.json | tee packer-output.log
+                packer build nginx_private_ami.json | tee packer-output.log
 
-              # Extract AMI ID
-              if [ -f ami_id.txt ]; then
-                echo "AMI ID extracted from ami_id.txt"
-              elif grep -q 'ami-' packer-output.log; then
-                grep -o 'ami-[a-zA-Z0-9\\-]*' packer-output.log | tail -1 > ami_id.txt
-              else
-                echo "AMI ID not found!" && exit 1
-              fi
-            '''
+                # Extract AMI ID
+                if [ -f ami_id.txt ]; then
+                  echo "AMI ID extracted from ami_id.txt"
+                elif grep -q 'ami-' packer-output.log; then
+                  grep -o 'ami-[a-zA-Z0-9\\-]*' packer-output.log | tail -1 > ami_id.txt
+                else
+                  echo "AMI ID not found!" && exit 1
+                fi
+              '''
+            }
           }
         }
         archiveArtifacts artifacts: 'packer/packer-output.log, packer/ami_id.txt', onlyIfSuccessful: true
