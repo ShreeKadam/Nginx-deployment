@@ -10,35 +10,17 @@ pipeline {
   }
 
   stages {
-
     stage('Build AMI with Packer') {
-      when {
-        expression { return !params.DESTROY_INFRA }
-      }
       steps {
-        withCredentials([
-          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
-        ]) {
-          script {
-            // Use Jenkins Packer Plugin
-            packerBuild(
-              installation: 'packer', // Must match name in Global Tool Configuration
-              template: 'packer/nginx_private_ami.json'
-            )
-
-            // Extract AMI ID from log
-            def amiId = sh(
-              script: "grep -o 'ami-[a-zA-Z0-9\\-]*' packer/packer-nginx_private_ami.json.log | tail -1",
-              returnStdout: true
-            ).trim()
-            writeFile file: 'packer/ami_id.txt', text: amiId
-          }
+        dir('packer') {
+          sh '''
+            echo "Initializing and Building Packer Template"
+            packer init .
+            packer build ${PACKER_TEMPLATE}
+          '''
         }
-
-        archiveArtifacts artifacts: 'packer/packer-*.log, packer/ami_id.txt', onlyIfSuccessful: true
       }
     }
-
     stage('Read AMI ID') {
       when {
         allOf {
