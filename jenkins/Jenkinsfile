@@ -22,28 +22,34 @@ pipeline {
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
             sh '''
-              # Prepare local bin directory
+              set -e
               mkdir -p ../packer/bin
               export PATH=$PATH:$(pwd)/../packer/bin
 
-              # Install packer locally if not already
+              # Download Packer if not already
               if ! ../packer/bin/packer &> /dev/null; then
-                echo "Installing Packer..."
+                echo "Downloading Packer..."
                 wget https://releases.hashicorp.com/packer/1.10.0/packer_1.10.0_linux_amd64.zip
                 unzip -o packer_1.10.0_linux_amd64.zip -d ../packer/bin
                 chmod +x ../packer/bin/packer
               fi
 
               ../packer/bin/packer --version
+
+              # Initialize Packer and build the AMI
               ../packer/bin/packer init nginx_private_ami.pkr.hcl
               ../packer/bin/packer build nginx_private_ami.pkr.hcl | tee ../packer/packer-output.log
 
-              grep -oP 'ami-[a-zA-Z0-9]+' ../packer/packer-output.log | tail -1 > ../packer/ami_id.txt
+              # Extract AMI ID from manifest if exists, fallback to grep
+              if [ -f ami_id.txt ]; then
+                cp ami_id.txt ../packer/ami_id.txt
+              elif grep -q 'ami-' ../packer/packer-output.log; then
+                grep -oP 'ami-[a-zA-Z0-9]+' ../packer/packer-output.log | tail -1 > ../packer/ami_id.txt
+              fi
             '''
           }
         }
-        archiveArtifacts artifacts: 'packer/packer-output.log', onlyIfSuccessful: true
-        archiveArtifacts artifacts: 'packer/ami_id.txt', onlyIfSuccessful: true
+        archiveArtifacts artifacts: 'packer/packer-output.log, packer/ami_id.txt', onlyIfSuccessful: true
       }
     }
 
