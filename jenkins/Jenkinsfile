@@ -84,7 +84,14 @@ pipeline {
       }
       steps {
         dir('terraform') {
-          sh 'terraform apply -auto-approve'
+          withCredentials([
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
+          ]) {
+            sh '''
+              export AWS_REGION=${AWS_REGION}
+              terraform apply -auto-approve
+            '''
+          }
         }
       }
     }
