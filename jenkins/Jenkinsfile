@@ -7,6 +7,7 @@ pipeline {
 
   environment {
     AWS_REGION = 'us-east-1'
+    PACKER_BIN = "${env.WORKSPACE}/packer/bin"
   }
 
   stages {
@@ -21,17 +22,24 @@ pipeline {
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
             sh '''
-              # Install packer if not available
-              if ! command -v packer &> /dev/null; then
+              # Prepare local bin directory
+              mkdir -p bin
+              export PATH=$PATH:$(pwd)/bin
+
+              # Install packer locally if not already
+              if ! ./bin/packer &> /dev/null; then
                 echo "Installing Packer..."
                 wget https://releases.hashicorp.com/packer/1.10.0/packer_1.10.0_linux_amd64.zip
-                unzip -o packer_1.10.0_linux_amd64.zip
-                sudo mv packer /usr/local/bin/
+                unzip -o packer_1.10.0_linux_amd64.zip -d ./bin
+                chmod +x ./bin/packer
               fi
 
-              packer --version
-              packer init .
-              packer build nginx.pkr.hcl | tee packer-output.log
+              ./bin/packer --version
+              ./bin/packer init .
+              ./bin/packer build nginx.pkr.hcl | tee packer-output.log
+
+              # Extract AMI ID if not already saved
+              grep -oP 'ami-[a-zA-Z0-9]+' packer-output.log | tail -1 > ami_id.txt
             '''
           }
         }
@@ -153,7 +161,7 @@ pipeline {
       )
       mail to: 'shreekadam2222htb@gmail.com',
            subject: 'SUCCESS: Tool Evaluation Pipeline',
-           body: "Build ${env.BUILD_NUMBER} succeeded. Check Jenkins for details: ${env.BUILD_URL}"
+           body: "Build #${env.BUILD_NUMBER} succeeded.\n\nCheck Jenkins for details:\n${env.BUILD_URL}"
     }
     failure {
       slackSend (
@@ -163,7 +171,7 @@ pipeline {
       )
       mail to: 'shreekadam2222htb@gmail.com',
            subject: 'FAILURE: Tool Evaluation Pipeline',
-           body: "Build ${env.BUILD_NUMBER} failed. Check Jenkins for details: ${env.BUILD_URL}"
+           body: "Build #${env.BUILD_NUMBER} failed.\n\nCheck Jenkins for details:\n${env.BUILD_URL}"
     }
     always {
       archiveArtifacts artifacts: '**/*.log, packer/ami_id.txt', onlyIfSuccessful: true
