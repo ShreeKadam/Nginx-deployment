@@ -11,7 +11,19 @@ pipeline {
 
   stages {
 
-    // Provisioning logic should only run if DESTROY_INFRA is false
+    stage('Read AMI ID') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
+      steps {
+        script {
+          env.AMI_ID = readFile('ami_id.txt').trim()
+          echo "Using AMI ID: ${env.AMI_ID}"
+        }
+        archiveArtifacts artifacts: 'ami_id.txt', onlyIfSuccessful: true
+      }
+    }
+
     stage('Terraform Init & Apply') {
       when {
         expression { return !params.DESTROY_INFRA }
@@ -22,14 +34,16 @@ pipeline {
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
             sh '''
+              set -e
               export AWS_REGION=${AWS_REGION}
-              terraform init
+              terraform init | tee terraform-init.log
               terraform fmt
-              terraform validate
-              terraform apply -auto-approve
+              terraform validate | tee terraform-validate.log
+              terraform apply -auto-approve -var="ami_id=${AMI_ID}" | tee terraform-apply.log
             '''
           }
         }
+        archiveArtifacts artifacts: 'terraform/*.log', onlyIfSuccessful: true
       }
     }
 
@@ -43,14 +57,16 @@ pipeline {
           [$class: 'SSHUserPrivateKeyBinding', credentialsId: 'nginx_key', keyFileVariable: 'SSH_KEY']
         ]) {
           script {
-            def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_public_ip", returnStdout: true).trim()
+            def bastionIp = sh(
+              script: "terraform -chdir=terraform output -raw bastion_public_ip",
+              returnStdout: true
+            ).trim()
+
+            echo "Injecting Bastion IP: ${bastionIp}"
 
             sh """
               sed -i 's|<bastion_public_ip>|${bastionIp}|' ansible/ansible.cfg
               sed -i 's|<private_key_path>|${SSH_KEY}|' ansible/ansible.cfg
-            """
-
-            sh """
               sed -i 's|tag:Type: webserver|tag:NGINX_Private: yes|' ansible/aws_ec2.yaml || true
             """
           }
@@ -72,18 +88,18 @@ pipeline {
               set -e
               python3 -m venv venv
               ./venv/bin/pip install -r requirements.txt
-
               ./venv/bin/ansible-galaxy collection install amazon.aws
 
               export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
               export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
               export AWS_REGION=${AWS_REGION}
 
-              ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph
-              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml
+              ./venv/bin/ansible-inventory -i aws_ec2.yaml --graph | tee ansible-inventory.log
+              ./venv/bin/ansible-playbook -i aws_ec2.yaml nginx.yml | tee ansible-playbook.log
             '''
           }
         }
+        archiveArtifacts artifacts: 'ansible/*.log', onlyIfSuccessful: true
       }
     }
 
@@ -96,13 +112,47 @@ pipeline {
           withCredentials([
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
-            sh '''
-              export AWS_REGION=${AWS_REGION}
-              terraform destroy -auto-approve
-            '''
+            script {
+              def amiId = readFile('../ami_id.txt').trim()
+              sh """
+                set -e
+                export AWS_REGION=${AWS_REGION}
+                terraform init
+                terraform destroy -auto-approve -var="ami_id=${amiId}" | tee terraform-destroy.log
+              """
+            }
           }
         }
+        archiveArtifacts artifacts: 'terraform/terraform-destroy.log', onlyIfSuccessful: true
       }
+    }
+  }
+
+  post {
+    always {
+      echo 'Pipeline finished. Archiving logs and sending notifications.'
+    }
+
+    success {
+      slackSend(channel: '#all-arizona', color: 'good', message: "*SUCCESS* - Job: ${env.JOB_NAME} #${env.BUILD_NUMBER} (<${env.BUILD_URL}|View>)")
+      emailext(
+        subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+        body: """<p>SUCCESS</p>
+                 <p>Job: ${env.JOB_NAME}<br>
+                 Build: <a href='${env.BUILD_URL}'>#${env.BUILD_NUMBER}</a></p>""",
+        to: 'shreekadam2222htb@gmail.com'
+      )
+    }
+
+    failure {
+      slackSend(channel: '#all-arizona', color: 'danger', message: "*FAILURE* - Job: ${env.JOB_NAME} #${env.BUILD_NUMBER} (<${env.BUILD_URL}|View>)")
+      emailext(
+        subject: "FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+        body: """<p>FAILURE</p>
+                 <p>Job: ${env.JOB_NAME}<br>
+                 Build: <a href='${env.BUILD_URL}'>#${env.BUILD_NUMBER}</a></p>""",
+        to: 'shreekadam2222htb@gmail.com'
+      )
     }
   }
 }
