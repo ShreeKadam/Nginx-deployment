@@ -23,10 +23,28 @@ pipeline {
             sh '''
               set -e
 
-              # ✅ Check if packer is installed
+              # ✅ Install Packer if not present
+              echo "🔍 Checking Packer..."
               if ! command -v packer &> /dev/null; then
-                echo "❌ Packer is not installed. Please install it and make sure it's in the PATH."
-                exit 127
+                echo "⚙️ Installing Packer..."
+
+                if [ -f /etc/debian_version ]; then
+                  echo "📦 Installing via apt (Debian/Ubuntu)"
+                  sudo apt-get update -y
+                  sudo apt-get install -y gnupg curl software-properties-common
+                  curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+                  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+                  sudo apt update -y
+                  sudo apt install -y packer
+                elif [ -f /etc/redhat-release ]; then
+                  echo "📦 Installing via yum (RHEL/Amazon Linux)"
+                  sudo yum install -y yum-utils
+                  sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+                  sudo yum -y install packer
+                else
+                  echo "❌ Unsupported OS for auto-install. Please install Packer manually."
+                  exit 1
+                fi
               fi
 
               echo "✅ Packer version:"
