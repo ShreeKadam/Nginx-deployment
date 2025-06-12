@@ -10,33 +10,7 @@ pipeline {
   }
 
   stages {
-    stage('Build AMI with Packer') {
-      steps {
-        dir('packer') {
-          sh '''
-            echo "Initializing and Building Packer Template"
-            packer init .
-            packer build ${PACKER_TEMPLATE}
-          '''
-        }
-      }
-    }
-    stage('Read AMI ID') {
-      when {
-        allOf {
-          expression { return !params.DESTROY_INFRA }
-          expression { return fileExists('packer/ami_id.txt') }
-        }
-      }
-      steps {
-        script {
-          env.AMI_ID = readFile('packer/ami_id.txt').trim()
-          echo "Using AMI ID: ${env.AMI_ID}"
-        }
-      }
-    }
-
-    stage('Terraform Init & Apply') {
+    stage('Terraform Init') {
       when {
         expression { return !params.DESTROY_INFRA }
       }
@@ -48,11 +22,61 @@ pipeline {
             sh '''
               export AWS_REGION=${AWS_REGION}
               terraform init
-              terraform fmt
-              terraform validate
-              terraform apply -auto-approve
             '''
           }
+        }
+      }
+    }
+
+    stage('Terraform FMT') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
+      steps {
+        dir('terraform') {
+          sh 'terraform fmt'
+        }
+      }
+    }
+
+    stage('Terraform Validate') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
+      steps {
+        dir('terraform') {
+          sh 'terraform validate'
+        }
+      }
+    }
+
+    stage('Terraform Plan') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
+      steps {
+        dir('terraform') {
+          sh 'terraform plan -out=tfplan.out'
+        }
+      }
+    }
+
+    stage('Approve Terraform Apply') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
+      steps {
+        input message: 'Do you want to proceed with Terraform Apply?'
+      }
+    }
+
+    stage('Terraform Apply') {
+      when {
+        expression { return !params.DESTROY_INFRA }
+      }
+      steps {
+        dir('terraform') {
+          sh 'terraform apply -auto-approve tfplan.out'
         }
       }
     }
@@ -103,6 +127,15 @@ pipeline {
             '''
           }
         }
+      }
+    }
+
+    stage('Approve Terraform Destroy') {
+      when {
+        expression { return params.DESTROY_INFRA }
+      }
+      steps {
+        input message: 'Are you sure you want to destroy the infrastructure?'
       }
     }
 
