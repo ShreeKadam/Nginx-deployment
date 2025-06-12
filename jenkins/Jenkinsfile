@@ -21,6 +21,15 @@ pipeline {
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
             sh '''
+              # Install packer if not available
+              if ! command -v packer &> /dev/null; then
+                echo "Installing Packer..."
+                wget https://releases.hashicorp.com/packer/1.10.0/packer_1.10.0_linux_amd64.zip
+                unzip -o packer_1.10.0_linux_amd64.zip
+                sudo mv packer /usr/local/bin/
+              fi
+
+              packer --version
               packer init .
               packer build nginx.pkr.hcl | tee packer-output.log
             '''
@@ -161,4 +170,3 @@ pipeline {
     }
   }
 }
-
