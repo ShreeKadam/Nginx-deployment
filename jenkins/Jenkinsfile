@@ -17,29 +17,28 @@ pipeline {
         expression { return !params.DESTROY_INFRA }
       }
       steps {
-        dir('packer') {
+        dir('terraform') {
           withCredentials([
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
             sh '''
               # Prepare local bin directory
-              mkdir -p bin
-              export PATH=$PATH:$(pwd)/bin
+              mkdir -p ../packer/bin
+              export PATH=$PATH:$(pwd)/../packer/bin
 
               # Install packer locally if not already
-              if ! ./bin/packer &> /dev/null; then
+              if ! ../packer/bin/packer &> /dev/null; then
                 echo "Installing Packer..."
                 wget https://releases.hashicorp.com/packer/1.10.0/packer_1.10.0_linux_amd64.zip
-                unzip -o packer_1.10.0_linux_amd64.zip -d ./bin
-                chmod +x ./bin/packer
+                unzip -o packer_1.10.0_linux_amd64.zip -d ../packer/bin
+                chmod +x ../packer/bin/packer
               fi
 
-              ./bin/packer --version
-              ./bin/packer init .
-              ./bin/packer build nginx.pkr.hcl | tee packer-output.log
+              ../packer/bin/packer --version
+              ../packer/bin/packer init nginx_private_ami.pkr.hcl
+              ../packer/bin/packer build nginx_private_ami.pkr.hcl | tee ../packer/packer-output.log
 
-              # Extract AMI ID if not already saved
-              grep -oP 'ami-[a-zA-Z0-9]+' packer-output.log | tail -1 > ami_id.txt
+              grep -oP 'ami-[a-zA-Z0-9]+' ../packer/packer-output.log | tail -1 > ../packer/ami_id.txt
             '''
           }
         }
