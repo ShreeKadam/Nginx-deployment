@@ -45,7 +45,11 @@ pipeline {
       }
       steps {
         dir('terraform') {
-          sh 'terraform validate'
+          withCredentials([
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
+          ]) {
+            sh 'terraform validate'
+          }
         }
       }
     }
@@ -56,7 +60,11 @@ pipeline {
       }
       steps {
         dir('terraform') {
-          sh 'terraform plan'
+          withCredentials([
+            [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
+          ]) {
+            sh 'terraform plan'
+          }
         }
       }
     }
@@ -130,13 +138,12 @@ pipeline {
       }
     }
 
-    // New Approval Stage after Terraform Plan and before Terraform Destroy
     stage('Approve Terraform Destroy') {
       when {
         expression { return params.DESTROY_INFRA }
       }
       steps {
-        input message: 'Are you sure you want to proceed with Terraform Destroy?'
+        input message: 'Are you sure you want to destroy the infrastructure?'
       }
     }
 
