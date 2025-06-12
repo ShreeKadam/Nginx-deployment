@@ -1,5 +1,8 @@
 pipeline {
   agent any
+  tools {
+    packer 'packer' // must match the name configured in Global Tool Config
+  }
 
   parameters {
     booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy infrastructure after run?')
