@@ -1,7 +1,7 @@
 pipeline {
   agent any
   tools {
-    packer 'packer' // must match the name configured in Global Tool Config
+    Packer 'packer' // must match the name configured in Global Tool Config
   }
 
   parameters {
