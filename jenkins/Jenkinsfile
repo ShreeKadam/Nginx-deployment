@@ -20,16 +20,11 @@ pipeline {
           withCredentials([
             [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
           ]) {
-            script {
-              def packerHome = tool name: 'packer1'
-              env.PATH = "${packerHome}:${env.PATH}"
-            }
-
             sh '''
               set -e
 
               echo "Packer version:"
-              packer version
+              packer version  # assuming packer is installed in system path
 
               # Move to packer directory and build AMI
               cd ../packer
