@@ -1,3 +1,12 @@
+packer {
+  required_plugins {
+    amazon = {
+      version = ">= 1.0.0"
+      source  = "github.com/hashicorp/amazon"
+    }
+  }
+}
+
 variable "aws_region" {
   type    = string
   default = "us-east-1"
@@ -9,9 +18,9 @@ variable "ami_name" {
 }
 
 source "amazon-ebs" "nginx_private" {
-  region                  = var.aws_region
-  instance_type           = "t2.micro"
-  ssh_username            = "ubuntu"
+  region                      = var.aws_region
+  instance_type               = "t2.micro"
+  ssh_username                = "ubuntu"
   associate_public_ip_address = true
 
   source_ami_filter {
@@ -21,7 +30,7 @@ source "amazon-ebs" "nginx_private" {
       root-device-type    = "ebs"
     }
     most_recent = true
-    owners      = ["099720109477"] # Canonical
+    owners      = ["099720109477"]
   }
 
   ami_name = "${var.ami_name}-${timestamp()}"
