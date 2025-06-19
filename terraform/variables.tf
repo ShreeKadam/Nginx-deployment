@@ -22,7 +22,7 @@ variable "instance_type" {
 variable "key_name" {
   description = "Key pair name to SSH into EC2 instances"
   type        = string
-  default     = "nginx"
+  default     = "nginx.pem"
 }
 
 variable "private_instance_count" {
