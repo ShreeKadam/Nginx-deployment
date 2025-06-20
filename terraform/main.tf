@@ -215,10 +215,6 @@ resource "aws_lb_listener" "nginx_listener" {
   }
 }
 
-# ------------------------------
-# NACL for private subnets
-# ------------------------------
-
 resource "aws_network_acl" "private_nacl" {
   vpc_id     = aws_vpc.main.id
   subnet_ids = aws_subnet.private[*].id
