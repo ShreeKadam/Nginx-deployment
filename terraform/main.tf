@@ -214,3 +214,82 @@ resource "aws_lb_listener" "nginx_listener" {
     target_group_arn = aws_lb_target_group.nginx_tg.arn
   }
 }
+
+# ------------------------------
+# NACL for private subnets
+# ------------------------------
+
+resource "aws_network_acl" "private_nacl" {
+  vpc_id     = aws_vpc.main.id
+  subnet_ids = aws_subnet.private[*].id
+
+  tags = {
+    Name = "private-nacl"
+  }
+}
+
+resource "aws_network_acl_rule" "private_inbound_allow_http" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 100
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 80
+  to_port        = 80
+}
+
+resource "aws_network_acl_rule" "private_inbound_allow_ssh" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 110
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 22
+  to_port        = 22
+}
+
+resource "aws_network_acl_rule" "private_inbound_allow_ephemeral" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 120
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 1024
+  to_port        = 65535
+}
+
+resource "aws_network_acl_rule" "private_outbound_allow_http" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 100
+  egress         = true
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 80
+  to_port        = 80
+}
+
+resource "aws_network_acl_rule" "private_outbound_allow_ssh" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 110
+  egress         = true
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 22
+  to_port        = 22
+}
+
+resource "aws_network_acl_rule" "private_outbound_allow_ephemeral" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 120
+  egress         = true
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 1024
+  to_port        = 65535
+}
