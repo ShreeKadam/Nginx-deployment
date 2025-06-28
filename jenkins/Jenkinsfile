@@ -195,7 +195,7 @@ pipeline {
            body: "Build #${env.BUILD_NUMBER} failed.\n\nCheck Jenkins for details:\n${env.BUILD_URL}"
     }
     always {
-      archiveArtifacts artifacts: '**/*.log, packer/ami_id.txt', onlyIfSuccessful: true
+      //archiveArtifacts artifacts: '**/*.log, packer/ami_id.txt', onlyIfSuccessful: true
     }
   }
 }
