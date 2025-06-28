@@ -13,7 +13,7 @@
       when: ansible_facts.os_family == "Debian"
 
     - name: Start and enable nginx
-      ansible.builtin.service:
+      service:
         name: nginx
         state: started
         enabled: true
