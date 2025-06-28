@@ -194,8 +194,8 @@ pipeline {
            subject: 'FAILURE: Tool Evaluation Pipeline',
            body: "Build #${env.BUILD_NUMBER} failed.\n\nCheck Jenkins for details:\n${env.BUILD_URL}"
     }
-    always {
+    //always {
       //archiveArtifacts artifacts: '**/*.log, packer/ami_id.txt', onlyIfSuccessful: true
-    }
+    //}
   }
 }
