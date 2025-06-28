@@ -1,4 +1,4 @@
-terraform {Add commentMore actions
+terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -9,8 +9,10 @@ terraform {Add commentMore actions
       version = "~> 4.0"
     }
   }
+
   required_version = ">= 1.1.0"
 }
+
 provider "aws" {
   region = var.region
 }
